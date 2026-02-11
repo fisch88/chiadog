@@ -33,13 +33,18 @@ class WalletAddedCoinHandler(LogHandlerInterface):
         if stats_manager:
             stats_manager.consume_wallet_messages(added_coin_messages)
 
-        total_mojos = 0
+        total_received_mojos = 0
+        total_spent_mojos = 0
         for coin_msg in added_coin_messages:
-            logging.info(f"Cha-ching! Just received {coin_msg.amount_mojos} mojos.")
-            total_mojos += coin_msg.amount_mojos
+            if coin_msg.is_spent:
+                logging.info(f"Spent {coin_msg.amount_mojos} mojos.")
+                total_spent_mojos += coin_msg.amount_mojos
+            else:
+                logging.info(f"Cha-ching! Just received {coin_msg.amount_mojos} mojos.")
+                total_received_mojos += coin_msg.amount_mojos
 
-        if total_mojos > self.min_mojos_amount:
-            chia_coins = total_mojos / 1e12
+        if total_received_mojos > self.min_mojos_amount:
+            chia_coins = total_received_mojos / 1e12
             xch_string = f"{chia_coins:.12f}".rstrip("0").rstrip(".")
             events.append(
                 Event(
@@ -49,10 +54,22 @@ class WalletAddedCoinHandler(LogHandlerInterface):
                     message=f"Cha-ching! Just received {xch_string} XCH ☘️",
                 )
             )
-        elif total_mojos != 0:
+        elif total_received_mojos != 0:
             logging.debug(
-                f"Filtering out chia coin message since the amount ${total_mojos} received is less than"
+                f"Filtering out chia coin message since the amount ${total_received_mojos} received is less than"
                 f"the configured transaction_amount: ${self.min_mojos_amount}"
+            )
+
+        if total_spent_mojos > self.min_mojos_amount:
+            chia_coins = total_spent_mojos / 1e12
+            xch_string = f"{chia_coins:.12f}".rstrip("0").rstrip(".")
+            events.append(
+                Event(
+                    type=EventType.USER,
+                    priority=EventPriority.LOW,
+                    service=EventService.WALLET,
+                    message=f"Just spent {xch_string} XCH",
+                )
             )
 
         return events

@@ -66,6 +66,30 @@ class TestWalledAddedCoinHandler(unittest.TestCase):
         no_filter_events = no_filter_handler.handle("".join(logs))
         self.assertEqual(1, len(no_filter_events))
 
+    def testSpentCoins(self):
+        with open(self.example_logs_path / "spent-after-1.6.1.txt", encoding="UTF-8") as f:
+            logs = f.read()
+
+        events = self.handler.handle(logs)
+        self.assertEqual(1, len(events))
+        self.assertEqual(events[0].type, EventType.USER)
+        self.assertEqual(events[0].priority, EventPriority.LOW)
+        self.assertEqual(events[0].service, EventService.WALLET)
+        self.assertEqual(events[0].message, "Just spent 2 XCH")
+
+    def testMixedTransactions(self):
+        with open(self.example_logs_path / "mixed-after-1.6.1.txt", encoding="UTF-8") as f:
+            logs = f.read()
+
+        events = self.handler.handle(logs)
+        self.assertEqual(2, len(events))
+        received_events = [e for e in events if "received" in e.message]
+        spent_events = [e for e in events if "spent" in e.message]
+        self.assertEqual(1, len(received_events))
+        self.assertEqual(1, len(spent_events))
+        self.assertEqual(received_events[0].message, "Cha-ching! Just received 0.25 XCH ☘️")
+        self.assertEqual(spent_events[0].message, "Just spent 1.75 XCH")
+
 
 if __name__ == "__main__":
     unittest.main()

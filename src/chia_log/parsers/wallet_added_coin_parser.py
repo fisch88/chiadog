@@ -13,6 +13,7 @@ from dateutil import parser as dateutil_parser
 class WalletAddedCoinMessage:
     timestamp: datetime
     amount_mojos: int
+    is_spent: bool = False
 
 
 class WalletAddedCoinParser:
@@ -27,6 +28,7 @@ class WalletAddedCoinParser:
         self._regex = re.compile(
             r"([0-9T:.-]+) (?:[0-9.]+ )?wallet (?:src|chia).wallet.wallet_(?:state_manager|node)(?:\s*)?: "
             r"INFO\s*(?:Adding|Adding record to state manager|request) coin: (?:.*)'?amount'?: ([0-9]*)(\s})?,"
+            r"(?:.*spent_height: (None|Some\([0-9]+\)))?"
         )
 
     def parse(self, logs: str) -> List[WalletAddedCoinMessage]:
@@ -39,10 +41,13 @@ class WalletAddedCoinParser:
         parsed_messages = []
         matches = self._regex.findall(logs)
         for match in matches:
+            spent_height_str = match[3] if len(match) > 3 else ""
+            is_spent = spent_height_str.startswith("Some") if spent_height_str else False
             parsed_messages.append(
                 WalletAddedCoinMessage(
                     timestamp=dateutil_parser.parse(match[0]),
                     amount_mojos=int(match[1]),
+                    is_spent=is_spent,
                 )
             )
 
